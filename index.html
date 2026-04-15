@@ -1,0 +1,1134 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CALCBOT — Painel de Controle</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #06111f;
+    --panel:     #0b1d30;
+    --border:    #1a4a7a;
+    --blue:      #1577d4;
+    --blue-lt:   #3a9bff;
+    --cyan:      #00cfff;
+    --white:     #ddeeff;
+    --dim:       #4a7aaa;
+    --green:     #00e676;
+    --orange:    #ff9500;
+    --red:       #ff3b3b;
+    --mono:      'Share Tech Mono', monospace;
+    --sans:      'Exo 2', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--white);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow-x: hidden;
+  }
+
+  /* ── SCANLINE OVERLAY ───────────────────────── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,.07) 2px,
+      rgba(0,0,0,.07) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* ── HEADER ─────────────────────────────────── */
+  header {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 56px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 28px; height: 28px;
+    border: 2px solid var(--cyan);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+  }
+  .logo-icon::after {
+    content: '';
+    width: 10px; height: 10px;
+    background: var(--cyan);
+    border-radius: 50%;
+    box-shadow: 0 0 8px var(--cyan);
+  }
+
+  .logo-text {
+    font-family: var(--mono);
+    font-size: 15px;
+    letter-spacing: 4px;
+    color: var(--cyan);
+  }
+
+  .logo-sub {
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    font-family: var(--mono);
+    line-height: 1;
+    margin-top: 2px;
+  }
+
+  /* STATUS DOT */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--dim);
+  }
+
+  .status-dot {
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--dim);
+    transition: background .3s, box-shadow .3s;
+  }
+  .dot.online  { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .dot.warning { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+  .dot.offline { background: var(--red); box-shadow: 0 0 8px var(--red); }
+
+  /* CLOCK */
+  #clock { font-family: var(--mono); font-size: 12px; color: var(--dim); }
+
+  /* ── NAV TABS ────────────────────────────────── */
+  nav {
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    padding: 0 24px;
+  }
+
+  .nav-tab {
+    padding: 10px 20px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    color: var(--dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .2s, border-color .2s;
+    user-select: none;
+    text-transform: uppercase;
+  }
+
+  .nav-tab:hover { color: var(--blue-lt); }
+  .nav-tab.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+
+  /* ── PAGES ───────────────────────────────────── */
+  .page { display: none; flex: 1; padding: 28px 24px; animation: fadeIn .25s ease; }
+  .page.active { display: flex; flex-direction: column; }
+
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; } }
+
+  /* ── SECTION LABEL ───────────────────────────── */
+  .section-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 3px;
+    color: var(--dim);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* ════════════════════════════════════════════
+     PAGE 1 — CONTROLE PRINCIPAL
+  ════════════════════════════════════════════ */
+
+  .status-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 20px;
+    margin-bottom: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .robot-state {
+    display: flex; align-items: center; gap: 10px;
+  }
+
+  .state-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 4px 12px;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    background: rgba(0,0,0,.3);
+    color: var(--dim);
+    transition: all .3s;
+  }
+
+  .state-badge.running  { color: var(--green);  border-color: var(--green);  background: rgba(0,230,118,.08); }
+  .state-badge.paused   { color: var(--orange); border-color: var(--orange); background: rgba(255,149,0,.08); }
+  .state-badge.stopped  { color: var(--red);    border-color: var(--red);    background: rgba(255,59,59,.08); }
+
+  .state-label { font-size: 12px; color: var(--dim); font-family: var(--mono); }
+
+  .signal-indicator {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--dim);
+    display: flex; align-items: center; gap: 6px;
+  }
+
+  .signal-bar-wrap { display: flex; gap: 2px; align-items: flex-end; }
+  .sig-bar {
+    width: 4px;
+    background: var(--border);
+    border-radius: 1px;
+    transition: background .3s;
+  }
+  .sig-bar:nth-child(1) { height: 6px; }
+  .sig-bar:nth-child(2) { height: 10px; }
+  .sig-bar:nth-child(3) { height: 14px; }
+  .sig-bar:nth-child(4) { height: 18px; }
+  .sig-bar.active { background: var(--cyan); }
+
+  /* ── BIG CONTROL BUTTONS ─────────────────────── */
+  .control-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  .ctrl-btn {
+    position: relative;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 28px 16px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: border-color .2s, background .2s, transform .1s, box-shadow .2s;
+    user-select: none;
+    overflow: hidden;
+  }
+
+  .ctrl-btn:active { transform: scale(.97); }
+
+  .ctrl-btn::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    transition: opacity .2s;
+    border-radius: inherit;
+  }
+
+  /* START */
+  .ctrl-btn.start { border-color: rgba(0,230,118,.3); }
+  .ctrl-btn.start::before { background: radial-gradient(ellipse at center, rgba(0,230,118,.1), transparent 70%); }
+  .ctrl-btn.start:hover { border-color: var(--green); box-shadow: 0 0 24px rgba(0,230,118,.15); }
+  .ctrl-btn.start:hover::before { opacity: 1; }
+
+  /* PAUSE */
+  .ctrl-btn.pause { border-color: rgba(255,149,0,.3); }
+  .ctrl-btn.pause::before { background: radial-gradient(ellipse at center, rgba(255,149,0,.1), transparent 70%); }
+  .ctrl-btn.pause:hover { border-color: var(--orange); box-shadow: 0 0 24px rgba(255,149,0,.15); }
+  .ctrl-btn.pause:hover::before { opacity: 1; }
+
+  /* STOP */
+  .ctrl-btn.stop { border-color: rgba(255,59,59,.3); }
+  .ctrl-btn.stop::before { background: radial-gradient(ellipse at center, rgba(255,59,59,.1), transparent 70%); }
+  .ctrl-btn.stop:hover { border-color: var(--red); box-shadow: 0 0 24px rgba(255,59,59,.15); }
+  .ctrl-btn.stop:hover::before { opacity: 1; }
+
+  .ctrl-icon {
+    width: 52px; height: 52px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    transition: box-shadow .2s;
+  }
+
+  .ctrl-btn.start .ctrl-icon { background: rgba(0,230,118,.12); border: 2px solid var(--green); color: var(--green); }
+  .ctrl-btn.pause .ctrl-icon { background: rgba(255,149,0,.12); border: 2px solid var(--orange); color: var(--orange); }
+  .ctrl-btn.stop  .ctrl-icon { background: rgba(255,59,59,.12);  border: 2px solid var(--red);    color: var(--red); }
+
+  .ctrl-btn:hover .ctrl-icon { box-shadow: 0 0 16px currentColor; }
+
+  .ctrl-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-align: center;
+  }
+  .ctrl-btn.start .ctrl-label { color: var(--green); }
+  .ctrl-btn.pause .ctrl-label { color: var(--orange); }
+  .ctrl-btn.stop  .ctrl-label { color: var(--red); }
+
+  .ctrl-sub {
+    font-size: 9px;
+    color: var(--dim);
+    text-align: center;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+  }
+
+  /* ── LOG FEED ────────────────────────────────── */
+  .log-feed {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    flex: 1;
+    overflow-y: auto;
+    max-height: 180px;
+  }
+
+  .log-entry {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(26,74,122,.3);
+    display: flex;
+    gap: 12px;
+    animation: logIn .2s ease;
+  }
+
+  @keyframes logIn { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; } }
+
+  .log-time { color: var(--dim); flex-shrink: 0; }
+  .log-msg  { color: var(--white); }
+  .log-msg.ok   { color: var(--green); }
+  .log-msg.warn { color: var(--orange); }
+  .log-msg.err  { color: var(--red); }
+
+  /* ════════════════════════════════════════════
+     PAGE 2 — CONFIGURAÇÕES
+  ════════════════════════════════════════════ */
+
+  .cfg-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+
+  @media (max-width: 600px) { .cfg-grid { grid-template-columns: 1fr; } .control-grid { grid-template-columns: 1fr; } }
+
+  .cfg-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px;
+  }
+
+  .cfg-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 2px;
+    color: var(--cyan);
+    margin-bottom: 14px;
+    text-transform: uppercase;
+  }
+
+  /* SLIDER */
+  .param-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 14px;
+  }
+
+  .param-label {
+    font-size: 11px;
+    color: var(--dim);
+    font-family: var(--mono);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .param-val {
+    font-size: 13px;
+    color: var(--white);
+    font-family: var(--mono);
+    font-weight: bold;
+  }
+
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 4px;
+    background: var(--border);
+    border-radius: 2px;
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: var(--blue-lt);
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 8px var(--cyan);
+    cursor: pointer;
+    transition: box-shadow .2s;
+  }
+  input[type=range]:hover::-webkit-slider-thumb { box-shadow: 0 0 14px var(--cyan); }
+
+  /* LINE COLOR PICKER */
+  .color-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+  }
+
+  .color-opt {
+    aspect-ratio: 1;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: border-color .2s, transform .15s, box-shadow .2s;
+    position: relative;
+  }
+
+  .color-opt:hover { transform: scale(1.08); }
+  .color-opt.selected { border-color: var(--white); box-shadow: 0 0 12px rgba(255,255,255,.3); }
+
+  .color-opt .color-name {
+    position: absolute;
+    bottom: -18px;
+    left: 50%; transform: translateX(-50%);
+    font-family: var(--mono);
+    font-size: 8px;
+    color: var(--dim);
+    white-space: nowrap;
+  }
+
+  .color-picker-wrap { padding-bottom: 24px; }
+
+  /* MODULE STATUS */
+  .module-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .module-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0,0,0,.25);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 14px;
+  }
+
+  .module-name { font-size: 12px; font-family: var(--mono); color: var(--white); }
+  .module-sub  { font-size: 9px;  font-family: var(--mono); color: var(--dim); margin-top: 2px; }
+
+  .module-tag {
+    font-size: 9px;
+    font-family: var(--mono);
+    letter-spacing: 1px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    border: 1px solid;
+  }
+  .module-tag.ok   { color: var(--green);  border-color: var(--green);  background: rgba(0,230,118,.08); }
+  .module-tag.idle { color: var(--dim);    border-color: var(--border); }
+
+  /* SEND CONFIG BTN */
+  .send-btn {
+    background: var(--blue);
+    border: 1px solid var(--blue-lt);
+    border-radius: 8px;
+    color: #fff;
+    font-family: var(--mono);
+    font-size: 12px;
+    letter-spacing: 2px;
+    padding: 14px 24px;
+    cursor: pointer;
+    width: 100%;
+    transition: background .2s, box-shadow .2s, transform .1s;
+    text-transform: uppercase;
+  }
+  .send-btn:hover { background: var(--blue-lt); box-shadow: 0 0 20px rgba(58,155,255,.3); }
+  .send-btn:active { transform: scale(.98); }
+
+  /* ── POPUP / MODAL ───────────────────────────── */
+  .overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.7);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .overlay.show { display: flex; }
+
+  .popup {
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 28px;
+    max-width: 340px;
+    width: 100%;
+    animation: popIn .25s cubic-bezier(.34,1.56,.64,1);
+    position: relative;
+    overflow: hidden;
+  }
+
+  @keyframes popIn {
+    from { opacity: 0; transform: scale(.85) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  .popup::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+  }
+  .popup.type-start::before  { background: var(--green); }
+  .popup.type-pause::before  { background: var(--orange); }
+  .popup.type-stop::before   { background: var(--red); }
+  .popup.type-config::before { background: var(--cyan); }
+
+  .popup-icon {
+    font-size: 36px;
+    text-align: center;
+    margin-bottom: 14px;
+  }
+
+  .popup-title {
+    font-family: var(--mono);
+    font-size: 14px;
+    letter-spacing: 3px;
+    text-align: center;
+    margin-bottom: 10px;
+    text-transform: uppercase;
+  }
+  .popup.type-start .popup-title  { color: var(--green); }
+  .popup.type-pause .popup-title  { color: var(--orange); }
+  .popup.type-stop  .popup-title  { color: var(--red); }
+  .popup.type-config .popup-title { color: var(--cyan); }
+
+  .popup-msg {
+    font-size: 13px;
+    color: var(--dim);
+    text-align: center;
+    line-height: 1.6;
+    margin-bottom: 20px;
+    font-family: var(--mono);
+  }
+
+  .popup-steps {
+    background: rgba(0,0,0,.3);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px 14px;
+    margin-bottom: 20px;
+  }
+
+  .popup-step {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--dim);
+    padding: 4px 0;
+    display: flex;
+    gap: 10px;
+    border-bottom: 1px solid rgba(26,74,122,.2);
+    align-items: flex-start;
+  }
+  .popup-step:last-child { border-bottom: none; }
+
+  .step-num {
+    color: var(--cyan);
+    flex-shrink: 0;
+  }
+
+  .popup-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .pop-btn {
+    flex: 1;
+    padding: 12px;
+    border-radius: 7px;
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    cursor: pointer;
+    transition: all .2s;
+    text-transform: uppercase;
+    border: 1px solid;
+  }
+
+  .pop-btn.cancel {
+    background: transparent;
+    border-color: var(--border);
+    color: var(--dim);
+  }
+  .pop-btn.cancel:hover { border-color: var(--dim); color: var(--white); }
+
+  .pop-btn.confirm-start  { background: rgba(0,230,118,.12); border-color: var(--green);  color: var(--green); }
+  .pop-btn.confirm-pause  { background: rgba(255,149,0,.12); border-color: var(--orange); color: var(--orange); }
+  .pop-btn.confirm-stop   { background: rgba(255,59,59,.12); border-color: var(--red);    color: var(--red); }
+  .pop-btn.confirm-config { background: rgba(0,207,255,.12); border-color: var(--cyan);   color: var(--cyan); }
+
+  .pop-btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+
+  /* SENDING ANIMATION */
+  .sending-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--cyan);
+    margin-top: 12px;
+    display: none;
+  }
+  .sending-row.show { display: flex; }
+
+  .send-dots span {
+    display: inline-block;
+    animation: blink 1.2s infinite;
+    opacity: 0;
+  }
+  .send-dots span:nth-child(2) { animation-delay: .3s; }
+  .send-dots span:nth-child(3) { animation-delay: .6s; }
+
+  @keyframes blink { 0%,100%{opacity:0} 50%{opacity:1} }
+
+  /* ── CONFIRM STOP SECOND LEVEL ───────────────── */
+  .warn-banner {
+    background: rgba(255,59,59,.08);
+    border: 1px solid rgba(255,59,59,.3);
+    border-radius: 6px;
+    padding: 10px 14px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--red);
+    text-align: center;
+    margin-bottom: 14px;
+    letter-spacing: 1px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ══════════════════════════════════ -->
+<header>
+  <div class="logo">
+    <div class="logo-icon"></div>
+    <div>
+      <div class="logo-text">CALCBOT</div>
+      <div class="logo-sub">SISTEMA DE CONTROLE v1.0</div>
+    </div>
+  </div>
+  <div class="status-bar">
+    <div class="status-dot">
+      <div class="dot" id="connDot"></div>
+      <span id="connLabel">DESCONECTADO</span>
+    </div>
+    <div class="signal-indicator">
+      <div class="signal-bar-wrap">
+        <div class="sig-bar" id="s1"></div>
+        <div class="sig-bar" id="s2"></div>
+        <div class="sig-bar" id="s3"></div>
+        <div class="sig-bar" id="s4"></div>
+      </div>
+      RF
+    </div>
+    <div id="clock">--:--:--</div>
+  </div>
+</header>
+
+<!-- ══ NAV ═════════════════════════════════════ -->
+<nav>
+  <div class="nav-tab active" onclick="showPage('p1', this)">⬡ CONTROLE</div>
+  <div class="nav-tab" onclick="showPage('p2', this)">⚙ CONFIGURAÇÕES</div>
+</nav>
+
+<!-- ══ PAGE 1 — CONTROLE ════════════════════════ -->
+<div class="page active" id="p1">
+
+  <!-- Status -->
+  <div class="status-panel">
+    <div class="robot-state">
+      <span class="state-label">ESTADO DO ROBÔ:</span>
+      <span class="state-badge stopped" id="stateBadge">PARADO</span>
+    </div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--dim);text-align:right;">
+      <div>CANAL: <span style="color:var(--white)" id="canalInfo">—</span></div>
+      <div style="margin-top:2px;">MÓDULO: <span style="color:var(--white)" id="moduloInfo">—</span></div>
+    </div>
+  </div>
+
+  <div class="section-label">comandos principais</div>
+
+  <!-- Main Buttons -->
+  <div class="control-grid">
+
+    <div class="ctrl-btn start" onclick="openPopup('start')">
+      <div class="ctrl-icon">▶</div>
+      <div class="ctrl-label">LIGAR</div>
+      <div class="ctrl-sub">Iniciar processo</div>
+    </div>
+
+    <div class="ctrl-btn pause" onclick="openPopup('pause')">
+      <div class="ctrl-icon">⏸</div>
+      <div class="ctrl-label">PAUSAR</div>
+      <div class="ctrl-sub">Suspender operação</div>
+    </div>
+
+    <div class="ctrl-btn stop" onclick="openPopup('stop')">
+      <div class="ctrl-icon">⏹</div>
+      <div class="ctrl-label">DESLIGAR</div>
+      <div class="ctrl-sub">Parada de emergência</div>
+    </div>
+
+  </div>
+
+  <!-- Log Feed -->
+  <div class="section-label">log de eventos</div>
+  <div class="log-feed" id="logFeed">
+    <div class="log-entry">
+      <span class="log-time">--:--:--</span>
+      <span class="log-msg">Sistema aguardando conexão RF...</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ══ PAGE 2 — CONFIGURAÇÕES ═══════════════════ -->
+<div class="page" id="p2">
+
+  <div class="section-label">parâmetros de operação</div>
+
+  <div class="cfg-grid">
+
+    <!-- Distância da Garra -->
+    <div class="cfg-card">
+      <div class="cfg-title">// distância da garra</div>
+
+      <div class="param-row">
+        <div class="param-label">
+          DIST. CENTRO → CANAL
+          <span class="param-val" id="distVal">120 mm</span>
+        </div>
+        <input type="range" min="50" max="300" value="120" id="distSlider"
+          oninput="document.getElementById('distVal').textContent = this.value + ' mm'">
+      </div>
+
+      <div class="param-row">
+        <div class="param-label">
+          PROFUNDIDADE DE INSERÇÃO
+          <span class="param-val" id="profVal">80 mm</span>
+        </div>
+        <input type="range" min="20" max="200" value="80" id="profSlider"
+          oninput="document.getElementById('profVal').textContent = this.value + ' mm'">
+      </div>
+
+      <div class="param-row">
+        <div class="param-label">
+          VELOCIDADE DE AVANÇO
+          <span class="param-val" id="velVal">40 %</span>
+        </div>
+        <input type="range" min="5" max="100" value="40" id="velSlider"
+          oninput="document.getElementById('velVal').textContent = this.value + ' %'">
+      </div>
+
+      <div class="param-row">
+        <div class="param-label">
+          PRESSÃO HIDRÁULICA
+          <span class="param-val" id="pressVal">60 bar</span>
+        </div>
+        <input type="range" min="10" max="120" value="60" id="pressSlider"
+          oninput="document.getElementById('pressVal').textContent = this.value + ' bar'">
+      </div>
+    </div>
+
+    <!-- Cor da Linha -->
+    <div class="cfg-card">
+      <div class="cfg-title">// cor da linha de seguimento</div>
+      <div class="color-picker-wrap">
+        <div class="color-picker-grid" id="colorGrid">
+          <div class="color-opt selected" style="background:#f5f5f5" data-color="BRANCO" onclick="selectColor(this)">
+            <span class="color-name">BRANCO</span>
+          </div>
+          <div class="color-opt" style="background:#f5c518" data-color="AMARELO" onclick="selectColor(this)">
+            <span class="color-name">AMARELO</span>
+          </div>
+          <div class="color-opt" style="background:#e74c3c" data-color="VERMELHO" onclick="selectColor(this)">
+            <span class="color-name">VERMELHO</span>
+          </div>
+          <div class="color-opt" style="background:#2ecc71" data-color="VERDE" onclick="selectColor(this)">
+            <span class="color-name">VERDE</span>
+          </div>
+          <div class="color-opt" style="background:#3498db" data-color="AZUL" onclick="selectColor(this)">
+            <span class="color-name">AZUL</span>
+          </div>
+          <div class="color-opt" style="background:#e67e22" data-color="LARANJA" onclick="selectColor(this)">
+            <span class="color-name">LARANJA</span>
+          </div>
+          <div class="color-opt" style="background:#9b59b6" data-color="ROXO" onclick="selectColor(this)">
+            <span class="color-name">ROXO</span>
+          </div>
+          <div class="color-opt" style="background:#ff69b4" data-color="ROSA" onclick="selectColor(this)">
+            <span class="color-name">ROSA</span>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:8px;font-family:var(--mono);font-size:11px;color:var(--dim);">
+        SELECIONADA: <span style="color:var(--white)" id="colorSelected">BRANCO</span>
+      </div>
+    </div>
+
+    <!-- Módulos -->
+    <div class="cfg-card" style="grid-column: 1 / -1;">
+      <div class="cfg-title">// status dos módulos</div>
+      <div class="module-list">
+        <div class="module-item">
+          <div>
+            <div class="module-name">MÓDULO DE DESTAMPAR</div>
+            <div class="module-sub">Rolo de ferro — impacto + encaixe para puxar</div>
+          </div>
+          <div class="module-tag ok">ENCAIXADO</div>
+        </div>
+        <div class="module-item">
+          <div>
+            <div class="module-name">MÓDULO DE LIMPEZA</div>
+            <div class="module-sub">Talhadeira circular — impacto nas crostas de cal</div>
+          </div>
+          <div class="module-tag ok">ENCAIXADO</div>
+        </div>
+        <div class="module-item">
+          <div>
+            <div class="module-name">SISTEMA HIDRÁULICO</div>
+            <div class="module-sub">Pressão nominal dos atuadores do braço</div>
+          </div>
+          <div class="module-tag ok">NOMINAL</div>
+        </div>
+        <div class="module-item">
+          <div>
+            <div class="module-name">SENSOR DE LINHA (IR)</div>
+            <div class="module-sub">Sensor infravermelho segue-linha</div>
+          </div>
+          <div class="module-tag idle">AGUARDANDO</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <button class="send-btn" onclick="openPopup('config')">
+    ↑ ENVIAR CONFIGURAÇÕES AO ROBÔ
+  </button>
+
+</div>
+
+<!-- ══ OVERLAYS / POPUPS ════════════════════════ -->
+
+<!-- START POPUP -->
+<div class="overlay" id="popStart">
+  <div class="popup type-start">
+    <div class="popup-icon">🟢</div>
+    <div class="popup-title">INICIAR PROCESSO</div>
+    <div class="popup-msg">O sinal de início será transmitido via RF ao microcontrolador embarcado.<br>O robô executará a sequência automatizada.</div>
+    <div class="popup-steps">
+      <div class="popup-step"><span class="step-num">[01]</span> Verificação dos sensores e módulos</div>
+      <div class="popup-step"><span class="step-num">[02]</span> Ativação do sistema hidráulico</div>
+      <div class="popup-step"><span class="step-num">[03]</span> Início do seguimento de linha</div>
+      <div class="popup-step"><span class="step-num">[04]</span> Alinhamento ao primeiro canal</div>
+      <div class="popup-step"><span class="step-num">[05]</span> Início do ciclo de destampar → limpar</div>
+    </div>
+    <div class="warn-banner" style="border-color:rgba(0,230,118,.3);background:rgba(0,230,118,.05);color:var(--green);">
+      ⚠ CERTIFIQUE-SE DE QUE A ÁREA ESTÁ LIVRE
+    </div>
+    <div class="popup-actions">
+      <button class="pop-btn cancel" onclick="closePopup('popStart')">CANCELAR</button>
+      <button class="pop-btn confirm-start" onclick="confirmAction('start')">CONFIRMAR</button>
+    </div>
+    <div class="sending-row" id="sendStart">
+      <span>TRANSMITINDO RF</span>
+      <span class="send-dots"><span>.</span><span>.</span><span>.</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- PAUSE POPUP -->
+<div class="overlay" id="popPause">
+  <div class="popup type-pause">
+    <div class="popup-icon">🟡</div>
+    <div class="popup-title">PAUSAR OPERAÇÃO</div>
+    <div class="popup-msg">O robô concluirá a ação atual e entrará em estado de pausa. O braço retornará à posição de repouso.</div>
+    <div class="popup-steps">
+      <div class="popup-step"><span class="step-num">[01]</span> Sinal de pausa enviado via RF</div>
+      <div class="popup-step"><span class="step-num">[02]</span> Conclusão da ação em curso</div>
+      <div class="popup-step"><span class="step-num">[03]</span> Braço retorna à posição neutra</div>
+      <div class="popup-step"><span class="step-num">[04]</span> Esteiras imobilizadas</div>
+      <div class="popup-step"><span class="step-num">[05]</span> Sistema hidráulico em pressão reduzida</div>
+    </div>
+    <div class="popup-actions">
+      <button class="pop-btn cancel" onclick="closePopup('popPause')">CANCELAR</button>
+      <button class="pop-btn confirm-pause" onclick="confirmAction('pause')">CONFIRMAR</button>
+    </div>
+    <div class="sending-row" id="sendPause">
+      <span>TRANSMITINDO RF</span>
+      <span class="send-dots"><span>.</span><span>.</span><span>.</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- STOP POPUP -->
+<div class="overlay" id="popStop">
+  <div class="popup type-stop">
+    <div class="popup-icon">🔴</div>
+    <div class="popup-title">PARADA DE EMERGÊNCIA</div>
+    <div class="popup-msg">Esta ação interrompe IMEDIATAMENTE todas as operações do robô e desliga o sistema hidráulico.</div>
+    <div class="warn-banner">
+      ⚠ ATENÇÃO — AÇÃO IRREVERSÍVEL NO CICLO ATUAL
+    </div>
+    <div class="popup-steps">
+      <div class="popup-step"><span class="step-num">[01]</span> Corte imediato dos atuadores hidráulicos</div>
+      <div class="popup-step"><span class="step-num">[02]</span> Travamento das esteiras</div>
+      <div class="popup-step"><span class="step-num">[03]</span> Braço desce para posição de segurança</div>
+      <div class="popup-step"><span class="step-num">[04]</span> Módulo atual desacoplado com segurança</div>
+      <div class="popup-step"><span class="step-num">[05]</span> Sistema aguarda reinicialização manual</div>
+    </div>
+    <div class="popup-actions">
+      <button class="pop-btn cancel" onclick="closePopup('popStop')">CANCELAR</button>
+      <button class="pop-btn confirm-stop" onclick="confirmAction('stop')">CONFIRMAR PARADA</button>
+    </div>
+    <div class="sending-row" id="sendStop">
+      <span>TRANSMITINDO RF</span>
+      <span class="send-dots"><span>.</span><span>.</span><span>.</span></span>
+    </div>
+  </div>
+</div>
+
+<!-- CONFIG POPUP -->
+<div class="overlay" id="popConfig">
+  <div class="popup type-config">
+    <div class="popup-icon">📡</div>
+    <div class="popup-title">ENVIAR CONFIGURAÇÕES</div>
+    <div class="popup-msg">Os seguintes parâmetros serão transmitidos ao microcontrolador do robô via RF.</div>
+    <div class="popup-steps" id="cfgPreview">
+      <!-- filled by JS -->
+    </div>
+    <div class="popup-actions">
+      <button class="pop-btn cancel" onclick="closePopup('popConfig')">CANCELAR</button>
+      <button class="pop-btn confirm-config" onclick="confirmAction('config')">ENVIAR</button>
+    </div>
+    <div class="sending-row" id="sendConfig">
+      <span>TRANSMITINDO RF</span>
+      <span class="send-dots"><span>.</span><span>.</span><span>.</span></span>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── CLOCK ──────────────────────────────────────
+  function updateClock() {
+    const n = new Date();
+    document.getElementById('clock').textContent =
+      n.toLocaleTimeString('pt-BR', {hour12: false});
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ── FAKE RF CONNECTION ─────────────────────────
+  setTimeout(() => {
+    document.getElementById('connDot').className = 'dot online';
+    document.getElementById('connLabel').textContent = 'RF CONECTADO';
+    ['s1','s2','s3'].forEach(id => document.getElementById(id).classList.add('active'));
+    addLog('Conexão RF estabelecida com o robô.', 'ok');
+    setTimeout(() => {
+      document.getElementById('s4').classList.add('active');
+      addLog('Sinal RF estável. Aguardando comando.', 'ok');
+    }, 600);
+  }, 1800);
+
+  // ── NAVIGATION ────────────────────────────────
+  function showPage(id, tab) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    tab.classList.add('active');
+  }
+
+  // ── ROBOT STATE ───────────────────────────────
+  let robotState = 'stopped';
+
+  function setRobotState(state) {
+    robotState = state;
+    const b = document.getElementById('stateBadge');
+    b.className = 'state-badge';
+    const labels = {
+      running: ['OPERANDO', 'running'],
+      paused:  ['PAUSADO',  'paused'],
+      stopped: ['PARADO',   'stopped']
+    };
+    const [txt, cls] = labels[state];
+    b.textContent = txt;
+    b.classList.add(cls);
+
+    if (state === 'running') {
+      document.getElementById('canalInfo').textContent = 'CANAL #01';
+      document.getElementById('moduloInfo').textContent = 'DESTAMPAR';
+    } else if (state === 'paused') {
+      document.getElementById('moduloInfo').textContent = 'EM PAUSA';
+    } else {
+      document.getElementById('canalInfo').textContent = '—';
+      document.getElementById('moduloInfo').textContent = '—';
+    }
+  }
+
+  // ── LOG ───────────────────────────────────────
+  function addLog(msg, type = '') {
+    const feed = document.getElementById('logFeed');
+    const time = new Date().toLocaleTimeString('pt-BR', {hour12: false});
+    const el = document.createElement('div');
+    el.className = 'log-entry';
+    el.innerHTML = `<span class="log-time">${time}</span><span class="log-msg ${type}">${msg}</span>`;
+    feed.appendChild(el);
+    feed.scrollTop = feed.scrollHeight;
+  }
+
+  // ── COLOR PICKER ──────────────────────────────
+  function selectColor(el) {
+    document.querySelectorAll('.color-opt').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+    document.getElementById('colorSelected').textContent = el.dataset.color;
+  }
+
+  // ── POPUPS ────────────────────────────────────
+  function openPopup(type) {
+    if (type === 'config') {
+      // Build preview
+      const d = document.getElementById('distSlider').value;
+      const p = document.getElementById('profSlider').value;
+      const v = document.getElementById('velSlider').value;
+      const pr = document.getElementById('pressSlider').value;
+      const c = document.getElementById('colorSelected').textContent;
+      document.getElementById('cfgPreview').innerHTML = `
+        <div class="popup-step"><span class="step-num">DIST</span> Centro → Canal: ${d} mm</div>
+        <div class="popup-step"><span class="step-num">PROF</span> Profundidade de inserção: ${p} mm</div>
+        <div class="popup-step"><span class="step-num">VEL</span> Velocidade de avanço: ${v}%</div>
+        <div class="popup-step"><span class="step-num">HID</span> Pressão hidráulica: ${pr} bar</div>
+        <div class="popup-step"><span class="step-num">COR</span> Linha de seguimento: ${c}</div>
+      `;
+    }
+    const popMap = { start: 'popStart', pause: 'popPause', stop: 'popStop', config: 'popConfig' };
+    document.getElementById(popMap[type]).classList.add('show');
+  }
+
+  function closePopup(id) {
+    document.getElementById(id).classList.remove('show');
+    // Reset sending rows
+    document.querySelectorAll('.sending-row').forEach(r => r.classList.remove('show'));
+  }
+
+  function confirmAction(type) {
+    const sendMap  = { start: 'sendStart', pause: 'sendPause', stop: 'sendStop', config: 'sendConfig' };
+    const popMap   = { start: 'popStart', pause: 'popPause', stop: 'popStop', config: 'popConfig' };
+    const sendEl   = document.getElementById(sendMap[type]);
+    sendEl.classList.add('show');
+
+    // Disable confirm btn during send
+    const overlay = document.getElementById(popMap[type]);
+    overlay.querySelectorAll('.pop-btn').forEach(b => b.disabled = true);
+
+    setTimeout(() => {
+      closePopup(popMap[type]);
+      overlay.querySelectorAll('.pop-btn').forEach(b => b.disabled = false);
+      applyAction(type);
+    }, 1800);
+  }
+
+  function applyAction(type) {
+    switch(type) {
+      case 'start':
+        setRobotState('running');
+        addLog('▶ Sinal RF [LIGAR] enviado. Robô iniciando sequência.', 'ok');
+        addLog('Verificação de módulos concluída. Sistema OK.', 'ok');
+        setTimeout(() => addLog('Seguimento de linha ativado. Cor: ' + document.getElementById('colorSelected').textContent + '.', 'ok'), 900);
+        setTimeout(() => addLog('Alinhando ao Canal #01...', ''), 1800);
+        break;
+      case 'pause':
+        setRobotState('paused');
+        addLog('⏸ Sinal RF [PAUSAR] enviado. Robô encerrando ação atual.', 'warn');
+        setTimeout(() => addLog('Braço retornando à posição neutra.', 'warn'), 700);
+        setTimeout(() => addLog('Esteiras imobilizadas. Sistema em pausa.', 'warn'), 1400);
+        break;
+      case 'stop':
+        setRobotState('stopped');
+        addLog('⏹ PARADA DE EMERGÊNCIA transmitida via RF.', 'err');
+        addLog('Corte hidráulico executado. Travamento das esteiras.', 'err');
+        setTimeout(() => addLog('Robô parado. Aguardando reinicialização manual.', 'err'), 800);
+        break;
+      case 'config':
+        addLog('📡 Configurações enviadas via RF ao microcontrolador.', 'ok');
+        addLog(`Dist: ${document.getElementById('distSlider').value}mm | Prof: ${document.getElementById('profSlider').value}mm | Vel: ${document.getElementById('velSlider').value}% | Pres: ${document.getElementById('pressSlider').value}bar`, 'ok');
+        addLog(`Cor da linha definida: ${document.getElementById('colorSelected').textContent}.`, 'ok');
+        break;
+    }
+  }
+
+  // Close overlay on outside click
+  document.querySelectorAll('.overlay').forEach(ov => {
+    ov.addEventListener('click', function(e) {
+      if (e.target === this) {
+        const id = this.id;
+        // Check if buttons are disabled (sending in progress)
+        if (!this.querySelector('.pop-btn[disabled]')) closePopup(id);
+      }
+    });
+  });
+</script>
+</body>
+</html>
