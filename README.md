@@ -149,11 +149,8 @@ Apesar da automação, algumas etapas exigem apoio do operador:
 ---
 
 ## 📷 Ilustração Conceitual
-*(Adicione aqui imagens ou diagramas do robô, se tiver)*
-
----
-
-## 📄 Licença
-Este projeto é de caráter acadêmico/experimental.
+<div align="center">
+  <img width="1312" height="1199" alt="image" src="https://github.com/user-attachments/assets/5db38370-f4b2-4859-817d-20dd9043da08" />
+</div>
 
 ---
